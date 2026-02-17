@@ -211,17 +211,17 @@ def _build_pdf_export(
         if points_forts:
             elems.append(Paragraph("<b>Points forts</b>", styles["normal"]))
             for p in points_forts:
-                elems.append(Paragraph(f'<font color="#16a34a">✓</font>  {p}', styles["normal"]))
+                elems.append(Paragraph(f'<font color="#16a34a">-</font>  {p}', styles["normal"]))
             elems.append(Spacer(1, 4))
         if points_attention:
             elems.append(Paragraph("<b>Points d'attention</b>", styles["normal"]))
             for p in points_attention:
-                elems.append(Paragraph(f'<font color="#d97706">⚠</font>  {p}', styles["normal"]))
+                elems.append(Paragraph(f'<font color="#d97706">!</font>  {p}', styles["normal"]))
             elems.append(Spacer(1, 4))
         if recommandations:
             elems.append(Paragraph("<b>Recommandations</b>", styles["normal"]))
             for r in recommandations:
-                elems.append(Paragraph(f'<font color="#1d4ed8">→</font>  {r}', styles["normal"]))
+                elems.append(Paragraph(f'<font color="#1d4ed8">-&gt;</font>  {r}', styles["normal"]))
 
     elems.append(Spacer(1, 16))
     elems.append(HRFlowable(width="100%", thickness=0.5, color=_PDF_BORDER))
