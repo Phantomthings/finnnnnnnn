@@ -1523,42 +1523,20 @@ function exportToPDF() {
         page.style.boxShadow = 'none';
     });
 
-    const worker = html2pdf()
-        .set({
-            margin: 0,
-            filename: 'ignore.pdf',
-            image: { type: 'jpeg', quality: 0.95 },
-            html2canvas: {
-                scale: 2,
-                useCORS: true,
-                backgroundColor: '#ffffff',
-            },
-            jsPDF: { unit: 'pt', format: 'a4', orientation: 'portrait' },
-        })
-        .from(document.querySelector('.report-container'));
-
-    worker
-        .toContainer()
-        .then(() => worker.toCanvas())
-        .then(() => {
-            const canvas = worker.prop.canvas;
-            const pageWidthPx = canvas.width;
-            const pageHeightPx = Math.round((canvas.width * Math.sqrt(2)));
-            const images = [];
-
-            for (let y = 0; y < canvas.height; y += pageHeightPx) {
-                const h = Math.min(pageHeightPx, canvas.height - y);
-                const pageCanvas = document.createElement('canvas');
-                pageCanvas.width = pageWidthPx;
-                pageCanvas.height = h;
-
-                const ctx = pageCanvas.getContext('2d');
-                if (!ctx) continue;
-                ctx.fillStyle = '#ffffff';
-                ctx.fillRect(0, 0, pageWidthPx, h);
-                ctx.drawImage(canvas, 0, y, pageWidthPx, h, 0, 0, pageWidthPx, h);
-                images.push(pageCanvas.toDataURL('image/jpeg', 0.95));
-            }
+    Promise.all(
+        pages.map((page) => html2canvas(page, {
+            scale: 2,
+            useCORS: true,
+            backgroundColor: '#ffffff',
+            logging: false,
+            scrollX: 0,
+            scrollY: 0,
+            windowWidth: document.documentElement.scrollWidth,
+            windowHeight: document.documentElement.scrollHeight,
+        }))
+    )
+        .then((canvases) => {
+            const images = canvases.map((canvas) => canvas.toDataURL('image/jpeg', 0.95));
 
             return fetch('/report/export-pdf', {
                 method: 'POST',
