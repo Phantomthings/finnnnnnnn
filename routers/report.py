@@ -1,9 +1,10 @@
-from fastapi import APIRouter, Request, Query
+from fastapi import APIRouter, Request, Query, Body, HTTPException
 from fastapi.templating import Jinja2Templates
 from fastapi.responses import StreamingResponse
 from datetime import date, datetime
 from typing import Any, Optional
 from io import BytesIO
+import base64
 import pandas as pd
 import numpy as np
 
@@ -12,7 +13,7 @@ from reportlab.lib import colors
 from reportlab.lib.styles import getSampleStyleSheet, ParagraphStyle
 from reportlab.lib.units import cm
 from reportlab.platypus import (
-    SimpleDocTemplate, Paragraph, Spacer, Table, TableStyle, HRFlowable
+    SimpleDocTemplate, Paragraph, Spacer, Table, TableStyle, HRFlowable, Image, PageBreak
 )
 from reportlab.lib.enums import TA_CENTER, TA_LEFT, TA_RIGHT
 
@@ -227,6 +228,51 @@ def _build_pdf_export(
     elems.append(Paragraph(f"Document généré automatiquement le {date_generation}", styles["small"]))
 
     doc.build(elems)
+    buf.seek(0)
+    return buf
+
+
+def _build_pdf_from_report_pages(images_data_urls: list[str]) -> BytesIO:
+    if not images_data_urls:
+        raise HTTPException(status_code=400, detail="Aucune page de rapport fournie")
+
+    buf = BytesIO()
+    doc = SimpleDocTemplate(
+        buf,
+        pagesize=A4,
+        leftMargin=1.2 * cm,
+        rightMargin=1.2 * cm,
+        topMargin=1.2 * cm,
+        bottomMargin=1.2 * cm,
+    )
+
+    max_width = A4[0] - (doc.leftMargin + doc.rightMargin)
+    max_height = A4[1] - (doc.topMargin + doc.bottomMargin)
+    story = []
+
+    for idx, data_url in enumerate(images_data_urls):
+        if not data_url.startswith("data:image"):
+            continue
+
+        try:
+            _, raw_data = data_url.split(",", 1)
+            image_bytes = base64.b64decode(raw_data)
+        except Exception as exc:
+            raise HTTPException(status_code=400, detail=f"Image de page invalide (index {idx})") from exc
+
+        img = Image(BytesIO(image_bytes))
+        ratio = min(max_width / img.imageWidth, max_height / img.imageHeight)
+        img.drawWidth = img.imageWidth * ratio
+        img.drawHeight = img.imageHeight * ratio
+        story.append(img)
+
+        if idx < len(images_data_urls) - 1:
+            story.append(PageBreak())
+
+    if not story:
+        raise HTTPException(status_code=400, detail="Aucune image exploitable pour générer le PDF")
+
+    doc.build(story)
     buf.seek(0)
     return buf
 
@@ -1298,6 +1344,23 @@ async def export_report_pdf(
     )
 
     filename = f"rapport_recharge_{date_debut or 'all'}_{date_fin or 'all'}.pdf"
+    return StreamingResponse(
+        pdf_buf,
+        media_type="application/pdf",
+        headers={"Content-Disposition": f'attachment; filename="{filename}"'},
+    )
+
+
+@router.post("/report/export-pdf")
+async def export_report_pdf_from_page(
+    payload: dict = Body(default={}),
+):
+    images = payload.get("images", []) if isinstance(payload, dict) else []
+    if not isinstance(images, list):
+        raise HTTPException(status_code=400, detail="Le champ images doit être une liste")
+
+    pdf_buf = _build_pdf_from_report_pages(images)
+    filename = f"rapport_recharge_{datetime.now().strftime('%Y%m%d_%H%M')}.pdf"
     return StreamingResponse(
         pdf_buf,
         media_type="application/pdf",
