@@ -1507,69 +1507,24 @@
 
 // Export PDF via reportlab (server-side)
 function exportToPDF() {
-    const pages = Array.from(document.querySelectorAll('.report-page'));
-    if (!pages.length) {
-        alert('Aucune page de rapport à exporter.');
-        return;
-    }
+    const params = new URLSearchParams();
 
-    const exportBtn = document.getElementById('export-pdf-btn');
-    const printBtn = document.getElementById('print-pdf-btn');
-    if (exportBtn) exportBtn.style.display = 'none';
-    if (printBtn) printBtn.style.display = 'none';
+    const selectedSites = {{ selected_sites | tojson }};
+    const selectedDateDebut = {{ selected_date_debut | tojson }};
+    const selectedDateFin = {{ selected_date_fin | tojson }};
+    const selectedErrorTypes = {{ selected_error_types | tojson }};
+    const selectedMoments = {{ selected_moments | tojson }};
 
-    const previousBoxShadows = pages.map((page) => page.style.boxShadow);
-    pages.forEach((page) => {
-        page.style.boxShadow = 'none';
-    });
+    if (selectedSites) params.set('sites', selectedSites);
+    if (selectedDateDebut) params.set('date_debut', selectedDateDebut);
+    if (selectedDateFin) params.set('date_fin', selectedDateFin);
+    if (selectedErrorTypes) params.set('error_types', selectedErrorTypes);
+    if (selectedMoments) params.set('moments', selectedMoments);
 
-    Promise.all(
-        pages.map((page) => html2canvas(page, {
-            scale: 2,
-            useCORS: true,
-            backgroundColor: '#ffffff',
-            logging: false,
-            scrollX: 0,
-            scrollY: 0,
-            windowWidth: document.documentElement.scrollWidth,
-            windowHeight: document.documentElement.scrollHeight,
-        }))
-    )
-        .then((canvases) => {
-            const images = canvases.map((canvas) => canvas.toDataURL('image/jpeg', 0.95));
+    const query = params.toString();
+    const url = `/api/report/export-pdf${query ? `?${query}` : ''}`;
 
-            return fetch('/api/report/export-pdf', {
-                method: 'POST',
-                headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({ images }),
-            });
-        })
-        .then((response) => {
-            if (!response.ok) {
-                throw new Error('Erreur lors de la génération du PDF');
-            }
-            return response.blob();
-        })
-        .then((blob) => {
-            const url = window.URL.createObjectURL(blob);
-            const link = document.createElement('a');
-            link.href = url;
-            link.download = `rapport_recharge_${new Date().toISOString().slice(0, 10)}.pdf`;
-            document.body.appendChild(link);
-            link.click();
-            link.remove();
-            window.URL.revokeObjectURL(url);
-        })
-        .catch(() => {
-            alert('Impossible de générer le PDF du rapport.');
-        })
-        .finally(() => {
-            pages.forEach((page, idx) => {
-                page.style.boxShadow = previousBoxShadows[idx] || '';
-            });
-            if (exportBtn) exportBtn.style.display = 'flex';
-            if (printBtn) printBtn.style.display = 'flex';
-        });
+    window.open(url, '_blank');
 }
 
 // Fonction alternative: Impression navigateur (meilleur pour le formatage)
