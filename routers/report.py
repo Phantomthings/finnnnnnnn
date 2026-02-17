@@ -1155,6 +1155,11 @@ async def get_report(
         "partials/report.html",
         {
             "request": request,
+            "selected_sites": sites,
+            "selected_date_debut": date_debut.isoformat() if date_debut else "",
+            "selected_date_fin": date_fin.isoformat() if date_fin else "",
+            "selected_error_types": error_types,
+            "selected_moments": moments,
             "date_debut": date_debut_str,
             "date_fin": date_fin_str,
             "date_generation": date_generation,
