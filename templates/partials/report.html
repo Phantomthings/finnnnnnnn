@@ -928,10 +928,10 @@
             
             <!-- Liste des charges chronologique pour ce site -->
             {% if charges_list_by_site and charges_list_by_site.get(site_name) %}
-            <h4 style="margin-top: 2rem; margin-bottom: 1rem; color: #334155; font-size: 1.1rem; font-weight: 600;">
+            <h4 class="exclude-export-report" style="margin-top: 2rem; margin-bottom: 1rem; color: #334155; font-size: 1.1rem; font-weight: 600;">
                 📋 Liste des charges chronologique — {{ site_name }}
             </h4>
-            <div style="overflow-x: auto; overflow-y: auto; max-height: 500px; border: 1px solid #e5e7eb; border-radius: 8px; position: relative;">
+            <div class="exclude-export-report" style="overflow-x: auto; overflow-y: auto; max-height: 500px; border: 1px solid #e5e7eb; border-radius: 8px; position: relative;">
                 <table class="report-table" style="margin: 0;">
                     <thead style="position: sticky; top: 0; z-index: 10; background: #1e40af; color: white;">
                         <tr>
@@ -1505,26 +1505,51 @@
     {% endif %}
 })();
 
-// Export PDF via reportlab (server-side)
+// Export PDF du rendu actuel (hors sections exclues)
 function exportToPDF() {
-    const params = new URLSearchParams();
+    const reportElement = document.querySelector('.report-container');
+    if (!reportElement || typeof html2pdf === 'undefined') {
+        alert('Export PDF indisponible pour le moment.');
+        return;
+    }
 
-    const selectedSites = {{ selected_sites | tojson }};
+    const exportBtn = document.getElementById('export-pdf-btn');
+    const printBtn = document.getElementById('print-pdf-btn');
+    const hiddenElements = [];
+
+    if (exportBtn) exportBtn.style.display = 'none';
+    if (printBtn) printBtn.style.display = 'none';
+
+    document.querySelectorAll('.exclude-export-report').forEach((el) => {
+        hiddenElements.push({ el, display: el.style.display });
+        el.style.display = 'none';
+    });
+
     const selectedDateDebut = {{ selected_date_debut | tojson }};
     const selectedDateFin = {{ selected_date_fin | tojson }};
-    const selectedErrorTypes = {{ selected_error_types | tojson }};
-    const selectedMoments = {{ selected_moments | tojson }};
+    const fileStart = selectedDateDebut || 'all';
+    const fileEnd = selectedDateFin || 'all';
 
-    if (selectedSites) params.set('sites', selectedSites);
-    if (selectedDateDebut) params.set('date_debut', selectedDateDebut);
-    if (selectedDateFin) params.set('date_fin', selectedDateFin);
-    if (selectedErrorTypes) params.set('error_types', selectedErrorTypes);
-    if (selectedMoments) params.set('moments', selectedMoments);
+    const options = {
+        margin: [8, 8, 8, 8],
+        filename: `rapport_recharge_${fileStart}_${fileEnd}.pdf`,
+        image: { type: 'jpeg', quality: 0.98 },
+        html2canvas: { scale: 2, useCORS: true, scrollY: 0 },
+        jsPDF: { unit: 'mm', format: 'a4', orientation: 'portrait' },
+        pagebreak: { mode: ['css', 'legacy'] }
+    };
 
-    const query = params.toString();
-    const url = `/api/report/export-pdf${query ? `?${query}` : ''}`;
-
-    window.open(url, '_blank');
+    html2pdf()
+        .set(options)
+        .from(reportElement)
+        .save()
+        .finally(() => {
+            hiddenElements.forEach(({ el, display }) => {
+                el.style.display = display;
+            });
+            if (exportBtn) exportBtn.style.display = 'flex';
+            if (printBtn) printBtn.style.display = 'flex';
+        });
 }
 
 // Fonction alternative: Impression navigateur (meilleur pour le formatage)
