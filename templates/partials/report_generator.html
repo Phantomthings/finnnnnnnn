@@ -233,7 +233,7 @@ function generateReport() {
         params.set('moments', formData.get('moments'));
     }
     
-    const url = '/report?' + params.toString();
+    const url = '/api/report?' + params.toString();
     if (typeof htmx !== 'undefined') {
         htmx.ajax('GET', url, {
             target: '#tab-content',

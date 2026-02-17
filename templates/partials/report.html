@@ -1538,7 +1538,7 @@ function exportToPDF() {
         .then((canvases) => {
             const images = canvases.map((canvas) => canvas.toDataURL('image/jpeg', 0.95));
 
-            return fetch('/report/export-pdf', {
+            return fetch('/api/report/export-pdf', {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
                 body: JSON.stringify({ images }),
